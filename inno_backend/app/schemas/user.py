@@ -1,4 +1,4 @@
-from marshmallow import Schema, fields, validates, ValidationError
+from marshmallow import Schema, fields, ValidationError, validates_schema, validate
 import json
 
 class UserRegistrationSchema(Schema):
@@ -8,25 +8,18 @@ class UserRegistrationSchema(Schema):
     password = fields.Str(required=True)
     confirm_password = fields.Str(required=True)
     date_of_birth = fields.Date(required=True)
-    gender = fields.Str(required=True)
+    gender = fields.Str(required=True, validate=validate.OneOf(
+        ['Male', 'Female', 'Other'],
+        error='Gender must be one of: Male, Female, Other'
+    ))
     phone_numbers = fields.List(fields.Str(), required=False)
     address = fields.Str(required=True)
     profile_picture = fields.Str(required=False)
     
-    @validates('gender')
-    def validate_gender(self, value):
-        valid_genders = ['Male', 'Female', 'Other']
-        if value not in valid_genders:
-            raise ValidationError('Gender must be one of: Male, Female, Other')
-    
-    @validates('confirm_password')
-    def validate_confirm_password(self, value, **kwargs):
-        if 'data' in kwargs and 'password' in kwargs['data']:
-            if kwargs['data']['password'] != value:
-                raise ValidationError('Passwords do not match')
-        else:
-            # Handle the case when data or password is not available
-            raise ValidationError('Password information is incomplete')
+    @validates_schema
+    def validate_passwords(self, data, **kwargs):
+        if data.get('password') != data.get('confirm_password'):
+            raise ValidationError('Passwords do not match', 'confirm_password')
 
 class UserLoginSchema(Schema):
     email = fields.Email(required=True)

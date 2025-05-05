@@ -28,12 +28,6 @@ def register():
             except:
                 data['phone_numbers'] = []
         
-        # Validate date format
-        try:
-            data['date_of_birth'] = datetime.strptime(data['date_of_birth'], '%Y-%m-%d').date()
-        except ValueError:
-            return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
-        
         # Handle profile picture upload
         if 'profile_picture' in request.files:
             file = request.files['profile_picture']
@@ -44,6 +38,13 @@ def register():
                 data['profile_picture'] = filename
     else:
         data = request.get_json()
+    
+    # Always convert date_of_birth to a Python date object
+    if 'date_of_birth' in data and isinstance(data['date_of_birth'], str):
+        try:
+            data['date_of_birth'] = datetime.strptime(data['date_of_birth'], '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
     
     # Validate input data
     errors = registration_schema.validate(data)

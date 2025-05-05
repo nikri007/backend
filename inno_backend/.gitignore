@@ -1,4 +1,6 @@
-venv/
-node_modules/
-.env
-dist/
+node_modules 
+.env 
+.env.local 
+logs 
+dist 
+npm-debug.log* 
