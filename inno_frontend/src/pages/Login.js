@@ -23,11 +23,20 @@ const Login = () => {
     setLoading(true);
     
     try {
+      console.log('Attempting login with:', { email });
       const response = await authService.login(formData);
-      saveUserData(response.data.token, response.data.user);
-      toast.success('Login successful!');
-      navigate('/');
+      console.log('Login response:', response.data);
+      
+      if (response.data && response.data.token) {
+        saveUserData(response.data.token, response.data.user);
+        toast.success('Login successful!');
+        navigate('/');
+      } else {
+        console.error('Login response missing token:', response.data);
+        toast.error('Login response missing token');
+      }
     } catch (err) {
+      console.error('Login error:', err);
       toast.error(err.response?.data?.error || 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);

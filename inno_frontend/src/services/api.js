@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getToken } from '../utils/auth';
 
 // Base axios instance
 const api = axios.create({
@@ -7,7 +8,7 @@ const api = axios.create({
 
 // Request interceptor to add auth token to all requests
 api.interceptors.request.use(config => {
-  const token = localStorage.getItem('token');
+  const token = getToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -15,6 +16,22 @@ api.interceptors.request.use(config => {
 }, error => {
   return Promise.reject(error);
 });
+
+// Response interceptor to handle auth errors
+api.interceptors.response.use(
+  response => response,
+  error => {
+    // Only redirect on 401/403 errors and only if they're not from the auth endpoints
+    if (error.response && 
+        (error.response.status === 401 || error.response.status === 403) && 
+        !error.config.url.includes('/auth/')) {
+      console.error('Authentication error:', error.response.data);
+      // Don't automatically redirect - let the component handle it
+      // This prevents redirect loops
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Auth services
 export const authService = {
@@ -41,7 +58,12 @@ export const contactService = {
     return await api.post('/contacts/', contactData);
   },
   getAll: async (page = 1, perPage = 10, search = '') => {
-    return await api.get(`/contacts/?page=${page}&per_page=${perPage}&search=${search}`);
+    const params = new URLSearchParams({
+      page,
+      per_page: perPage,
+      search
+    });
+    return await api.get(`/contacts/?${params.toString()}`);
   },
   getById: async (id) => {
     return await api.get(`/contacts/${id}`);

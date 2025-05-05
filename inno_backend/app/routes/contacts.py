@@ -15,16 +15,41 @@ def simple_test():
 @contacts_bp.route('/', methods=['GET'])
 @jwt_required()
 def get_contacts():
-    """Get all contacts for the current user"""
+    """Get all contacts for the current user with optional pagination and search"""
     try:
         current_user_id = get_jwt_identity()
         
-        # Fetch all contacts for the current user
-        contacts = Contact.query.filter_by(user_id=current_user_id).all()
+        # Get pagination parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 10, type=int)
+        search = request.args.get('search', '')
         
-        # Manually create JSON response
+        # Base query
+        query = Contact.query.filter_by(user_id=current_user_id)
+        
+        # Add search if provided
+        if search:
+            search_term = f"%{search}%"
+            query = query.filter(
+                db.or_(
+                    Contact.first_name.ilike(search_term),
+                    Contact.last_name.ilike(search_term),
+                    Contact.company.ilike(search_term)
+                )
+            )
+        
+        # Get total count before pagination
+        total_contacts = query.count()
+        
+        # Apply pagination
+        paginated_contacts = query.limit(per_page).offset((page - 1) * per_page).all()
+        
+        # Calculate total pages
+        total_pages = (total_contacts + per_page - 1) // per_page if total_contacts > 0 else 1
+        
+        # Prepare response
         contacts_list = []
-        for contact in contacts:
+        for contact in paginated_contacts:
             contacts_list.append({
                 'id': contact.id,
                 'first_name': contact.first_name,
@@ -36,10 +61,10 @@ def get_contacts():
         
         return jsonify({
             'contacts': contacts_list,
-            'page': 1,
-            'per_page': 10,
-            'total': len(contacts_list),
-            'pages': 1
+            'page': page,
+            'per_page': per_page,
+            'total': total_contacts,
+            'pages': total_pages
         }), 200
     except Exception as e:
         print(f"Error getting contacts: {str(e)}")
@@ -64,9 +89,8 @@ def create_contact():
             return jsonify({'error': 'First name and last name are required'}), 400
             
         # Process phone numbers
-        phone_numbers = data.get('phone_numbers', [])
-        if isinstance(phone_numbers, list):
-            phone_numbers = json.dumps(phone_numbers)
+        from app.utils.helpers import ensure_json_string
+        phone_numbers = ensure_json_string(data.get('phone_numbers', []))
         
         # Create new contact
         contact = Contact(
@@ -168,9 +192,8 @@ def update_contact(id):
         if 'company' in data:
             contact.company = data['company']
         if 'phone_numbers' in data:
-            phone_numbers = data['phone_numbers']
-            if isinstance(phone_numbers, list):
-                contact.phone_numbers = json.dumps(phone_numbers)
+            from app.utils.helpers import ensure_json_string
+            contact.phone_numbers = ensure_json_string(data['phone_numbers'])
         
         db.session.commit()
         

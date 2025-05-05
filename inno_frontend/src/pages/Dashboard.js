@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { contactService } from '../services/api';
+import { logout } from '../utils/auth';
 import ContactCard from '../components/ContactCard';
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -15,27 +17,38 @@ const Dashboard = () => {
     pages: 1
   });
   
-  const fetchContacts = async (page = 1, search = '') => {
-    setLoading(true);
-    try {
-      const response = await contactService.getAll(page, pagination.perPage, search);
-      setContacts(response.data.contacts);
-      setPagination({
-        page: response.data.page,
-        perPage: response.data.per_page,
-        total: response.data.total,
-        pages: response.data.pages
-      });
-    } catch (err) {
-      toast.error('Failed to fetch contacts');
-    } finally {
-      setLoading(false);
-    }
-  };
-  
   useEffect(() => {
+    const fetchContacts = async () => {
+      setLoading(true);
+      try {
+        console.log('Fetching contacts...');
+        const response = await contactService.getAll(pagination.page, pagination.perPage, search);
+        console.log('Contacts fetched successfully:', response.data);
+        setContacts(response.data.contacts);
+        setPagination({
+          page: response.data.page,
+          perPage: response.data.per_page,
+          total: response.data.total,
+          pages: response.data.pages
+        });
+      } catch (err) {
+        console.error('Error fetching contacts:', err);
+        // Only redirect on auth errors, don't show toast
+        if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+          console.error('Authentication error, redirecting to login');
+          // Clear auth data
+          logout();
+          navigate('/login');
+        } else {
+          toast.error('Failed to fetch contacts');
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+    
     fetchContacts();
-  }, []);
+  }, [search, pagination.page, pagination.perPage, navigate]);
   
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this contact?')) {
