@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { fileService, shareService, authService } from '../services/api';
-import { downloadFile } from '../utils/helpers';
 
 function Dashboard({ token, logout }) {
   const [view, setView] = useState('files');
@@ -50,11 +49,23 @@ function Dashboard({ token, logout }) {
     } catch (err) { setMsg('Delete failed'); }
   };
 
+  // Download function with inline logic (no helpers.js needed)
   const download = async (id, name) => {
     try {
       const res = await fileService.get(`/files/${id}/download`, { responseType: 'blob' });
-      downloadFile(res.data, name);
-    } catch (err) { setMsg('Download failed'); }
+      
+      // Create download link and trigger download
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) { 
+      setMsg('Download failed'); 
+    }
   };
 
   return (
@@ -244,4 +255,4 @@ function PasswordView({ setMsg }) {
   );
 }
 
-export default Dashboard; 
+export default Dashboard;

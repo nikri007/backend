@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { shareService } from '../services/api';
-import { downloadFile } from '../utils/helpers';
 
 function PublicShare({ token }) {
   const [info, setInfo] = useState(null);
@@ -18,10 +17,20 @@ function PublicShare({ token }) {
     load();
   }, [token]);
 
+  // Download function with inline logic (no helpers.js needed)
   const download = async () => {
     try {
       const res = await shareService.get(`/share/public/${token}/download`, { responseType: 'blob' });
-      downloadFile(res.data, info.filename);
+      
+      // Create download link and trigger download
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = info.filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     } catch (err) {
       setMsg('Download failed');
     }
@@ -42,4 +51,4 @@ function PublicShare({ token }) {
   );
 }
 
-export default PublicShare; 
+export default PublicShare;
